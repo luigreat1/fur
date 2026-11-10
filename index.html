@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Чья шубка?</title>
+<style>
+  :root{--bg:#fbf3e4;--ink:#3a2a1a;--muted:#8a7660;--card:#fff;--line:#ead9bd;--accent:#e8772e;--ok:#2f9e55;--bad:#d0392b}
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:var(--bg);color:var(--ink);font-family:"Nunito","Trebuchet MS","Segoe UI",system-ui,sans-serif;min-height:100vh;padding:16px}
+  .app{max-width:760px;margin:0 auto}
+  button{font:inherit;cursor:pointer}
+  .top{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+  .top h1{margin:0;font-size:24px;letter-spacing:-.01em;flex:1}
+  .pill{background:var(--card);border:2px solid var(--line);border-radius:999px;padding:6px 14px;font-weight:800;font-size:14px}
+  .ghost{background:var(--card);border:2px solid var(--line);border-radius:999px;padding:6px 14px;font-weight:700;font-size:14px;color:var(--ink)}
+  .ghost:hover{border-color:#cdb68f}
+  .screen{display:none}.screen.on{display:block}
+
+  /* старт и финиш */
+  .hero{text-align:center;padding:30px 10px}
+  .hero .fur-demo{width:150px;height:150px;border-radius:50%;margin:0 auto 18px;border:8px solid #6b4a2a;overflow:hidden;box-shadow:0 8px 20px rgba(60,40,10,.25)}
+  .hero h2{font-size:clamp(28px,6vw,42px);margin:0 0 8px}
+  .hero p{color:var(--muted);max-width:480px;margin:0 auto 22px;line-height:1.5}
+  .big{background:var(--accent);color:#fff;border:0;border-radius:999px;padding:14px 34px;font-weight:800;font-size:18px;box-shadow:0 5px 0 #b95a1c;transition:.1s}
+  .big:active{transform:translateY(3px);box-shadow:0 2px 0 #b95a1c}
+  .rules{display:inline-flex;gap:6px;margin-top:22px;flex-wrap:wrap;justify-content:center}
+  .rules span{background:var(--card);border:2px solid var(--line);border-radius:12px;padding:6px 12px;font-size:13px;font-weight:700}
+
+  /* игра */
+  .lens-wrap{display:flex;justify-content:center;margin:6px 0 6px}
+  .lens{position:relative;width:min(70vw,330px);aspect-ratio:1}
+  .lens .glass{position:absolute;inset:0;border-radius:50%;overflow:hidden;border:10px solid #6b4a2a;box-shadow:0 10px 26px rgba(60,40,10,.3),inset 0 0 30px rgba(0,0,0,.25);background:#ccc}
+  .lens .glass svg{width:100%;height:100%;display:block}
+  .lens .glass::after{content:"";position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 30% 25%,rgba(255,255,255,.35),rgba(255,255,255,0) 40%)}
+  .lens::after{content:"";position:absolute;width:20px;height:90px;background:#6b4a2a;border-radius:10px;right:-4px;bottom:-34px;transform:rotate(-40deg);transform-origin:top center;z-index:-1;display:none}
+  .meta{display:flex;justify-content:center;align-items:center;gap:12px;margin:10px 0 12px;flex-wrap:wrap}
+  .stars{font-size:22px;letter-spacing:2px;color:#e9a822}
+  .stars .off{color:#dccfb6}
+  .q{font-weight:800;font-size:19px;text-align:center;margin:4px 0 12px}
+  .zoom{background:var(--card);border:2px solid var(--line);border-radius:999px;padding:7px 16px;font-weight:700;font-size:14px}
+  .zoom:disabled{opacity:.4;cursor:default}
+
+  .opts{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  @media(max-width:560px){.opts{grid-template-columns:repeat(2,1fr)}}
+  .opt{background:var(--card);border:3px solid var(--line);border-radius:16px;padding:8px;display:flex;flex-direction:column;gap:6px;align-items:center;transition:transform .12s,border-color .12s,opacity .2s;color:var(--ink)}
+  .opt:hover:not(:disabled){transform:translateY(-3px);border-color:#cdb68f}
+  .opt .pic{width:100%;aspect-ratio:1;border-radius:10px;background:#f6ecda;display:flex;align-items:center;justify-content:center;overflow:hidden}
+  .opt .pic img{width:100%;height:100%;object-fit:contain;display:block}
+  .ph{display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;height:100%;border:2px dashed #cdb68f;border-radius:10px;color:var(--muted);font-size:11px;font-weight:700;gap:2px;text-align:center}
+  .ph b{font-size:clamp(34px,7vw,50px);line-height:1}
+  .opt .nm{font-weight:800;font-size:14px}
+  .opt:disabled{cursor:default}
+  .opt.wrong{border-color:var(--bad);opacity:.45}
+  .opt.right{border-color:var(--ok);box-shadow:0 0 0 4px rgba(47,158,85,.25)}
+
+  .result{display:none;margin-top:14px;border-radius:16px;padding:14px 16px;background:var(--card);border:2px solid var(--line)}
+  .result.on{display:block}
+  .result .head{font-weight:800;font-size:19px;margin-bottom:4px}
+  .result.good .head{color:var(--ok)}.result.bad .head{color:var(--bad)}
+  .result p{margin:0 0 12px;line-height:1.5}
+  .result .go{background:var(--ink);color:#fff;border:0;border-radius:999px;padding:10px 24px;font-weight:800}
+
+  .score-big{font-size:56px;font-weight:900;color:var(--accent);line-height:1}
+  .recap{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:520px;margin:0 auto 22px}
+  .recap span{background:var(--card);border:2px solid var(--line);border-radius:10px;padding:4px 10px;font-size:13px;font-weight:700}
+  .recap span.z{opacity:.55}
+
+  dialog{border:0;border-radius:18px;padding:0;max-width:560px;width:calc(100% - 28px);box-shadow:0 20px 60px rgba(0,0,0,.35)}
+  dialog::backdrop{background:rgba(40,25,10,.5)}
+  .dlg{padding:18px;max-height:80vh;overflow:auto}
+  .dlg h3{margin:0 0 6px}
+  .dlg p{color:var(--muted);font-size:13px;line-height:1.5;margin:0 0 12px}
+  .dlg code{background:#f1e6d0;border-radius:5px;padding:1px 5px}
+  .row{display:flex;align-items:center;gap:10px;padding:6px 0;border-top:1px solid var(--line)}
+  .row .th{width:48px;height:48px;border-radius:8px;background:#f6ecda;overflow:hidden;flex:none}
+  .row .th img{width:100%;height:100%;object-fit:contain}
+  .row .th .ph{font-size:0;border-width:1px}.row .th .ph b{font-size:24px}
+  .row .rn{flex:1;font-weight:700;font-size:14px}
+  .row input{font-size:12px;max-width:180px}
+  .dlg .close{margin-top:12px}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <h1>Чья шубка?</h1>
+    <span class="pill" id="roundPill" style="display:none"></span>
+    <span class="pill" id="scorePill" style="display:none"></span>
+    <button class="ghost" id="imgBtn">Картинки</button>
+  </div>
+
+  <!-- старт -->
+  <section class="screen on" id="sStart">
+    <div class="hero">
+      <div class="fur-demo" id="demo"></div>
+      <h2>Угадай, чья шубка</h2>
+      <p>Мы смотрим на кусочек шерсти в лупу. Угадай, какому животному он принадлежит. Чем ближе приближение, тем больше очков!</p>
+      <button class="big" id="startBtn">Играть</button>
+      <div class="rules"><span>10 раундов</span><span>★★★★ за самую близкую лупу</span><span>Ошибся — лупа отъезжает</span></div>
+    </div>
+  </section>
+
+  <!-- игра -->
+  <section class="screen" id="sGame">
+    <div class="lens-wrap"><div class="lens"><div class="glass" id="glass"></div></div></div>
+    <div class="meta">
+      <div class="stars" id="stars"></div>
+      <button class="zoom" id="zoomBtn">Отдалить −1★</button>
+    </div>
+    <div class="q" id="q">Чья это шубка?</div>
+    <div class="opts" id="opts"></div>
+    <div class="result" id="result">
+      <div class="head" id="rHead"></div>
+      <p id="rText"></p>
+      <button class="go" id="goBtn">Дальше</button>
+    </div>
+  </section>
+
+  <!-- финиш -->
+  <section class="screen" id="sEnd">
+    <div class="hero">
+      <div class="score-big" id="endScore"></div>
+      <h2 id="endTitle"></h2>
+      <p id="endText"></p>
+      <div class="recap" id="recap"></div>
+      <button class="big" id="againBtn">Ещё раз</button>
+    </div>
+  </section>
+</div>
+
+<dialog id="dlg">
+  <div class="dlg">
+    <h3>Картинки животных</h3>
+    <p>Файлы должны лежать рядом с игрой. Имена файлов: <code>leo.png</code>, <code>irbis.png</code>, <code>cheetos.png</code>, <code>dalmatin.png</code>, <code>girafa.png</code>, <code>cow.png</code>, <code>tiger.png</code>, <code>zibra.png</code>, <code>fox.png</code>, <code>bear.png</code>, <code>arcticbear.png</code>, <code>wolf.png</code>. Или выбери файл прямо здесь. Выбранное сохранится в браузере.</p>
+    <div id="imgList"></div>
+    <button class="ghost close" id="dlgClose">Готово</button>
+  </div>
+</dialog>
+
+<script>
+/* =====================================================================
+   НАСТРОЙКИ. Картинки лежат рядом с этим HTML-файлом.
+   Если у твоих файлов другое расширение (например .jpg), поменяй его тут.
+   ===================================================================== */
+const IMG_EXT = '.png'; // <-- если картинки .jpg, напиши '.jpg'
+
+const ROUNDS = 10;
+const ZOOM_WINDOWS = [170, 280, 440, 640]; // сколько «мира» видно в лупе (меньше = ближе)
+const POINTS = [4, 3, 2, 1];
+
+/* ---------- утилиты ---------- */
+function rng(seed){return()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296}}
+const f1=n=>n.toFixed(1);
+function hexRGB(h){h=h.replace('#','');return [0,2,4].map(i=>parseInt(h.substr(i,2),16))}
+function shade(h,amt){ // amt>0 светлее, <0 темнее
+  const t=amt>0?255:0,a=Math.abs(amt);
+  return '#'+hexRGB(h).map(v=>Math.round(v+(t-v)*a).toString(16).padStart(2,'0')).join('');
+}
+function blob(cx,cy,r,noise,R,n=10){
+  const pts=[];
+  for(let i=0;i<n;i++){const a=i/n*2*Math.PI,rr=r*(1+(R()-.5)*noise*2);pts.push([cx+Math.cos(a)*rr,cy+Math.sin(a)*rr])}
+  const m=(a,b)=>[(a[0]+b[0])/2,(a[1]+b[1])/2];
+  const s=m(pts[n-1],pts[0]);let d=`M${f1(s[0])} ${f1(s[1])}`;
+  for(let i=0;i<n;i++){const p=pts[i],q=m(pts[i],pts[(i+1)%n]);d+=`Q${f1(p[0])} ${f1(p[1])} ${f1(q[0])} ${f1(q[1])}`}
+  return d+'Z';
+}
+function poly(cx,cy,r,noise,R,n=7){
+  let d='';
+  for(let i=0;i<n;i++){const a=i/n*2*Math.PI+R()*.3,rr=r*(1+(R()-.5)*noise*2);d+=(i?'L':'M')+f1(cx+Math.cos(a)*rr)+' '+f1(cy+Math.sin(a)*rr)}
+  return d+'Z';
+}
+function stripe(x0,y0,len,amp,w,R,slant){
+  const N=14,L=[],Rt=[],ph=R()*6.28,fr=1+R()*1.4;
+  for(let i=0;i<=N;i++){
+    const t=i/N,y=y0+len*t,cx=x0+amp*Math.sin(ph+t*fr*Math.PI*2)+slant*len*t,hw=w/2*Math.pow(Math.sin(Math.PI*t),.55)+.6;
+    L.push([cx-hw,y]);Rt.push([cx+hw,y]);
+  }
+  return 'M'+L.concat(Rt.reverse()).map(p=>f1(p[0])+' '+f1(p[1])).join('L')+'Z';
+}
+/* шерстинки: много коротких изогнутых штрихов одним path на цвет */
+function hairs(R,specs,W=800,ang=80,spread=50){
+  return specs.map(s=>{
+    let d='';
+    for(let i=0;i<s.n;i++){
+      const x=R()*W,y=R()*W,a=(ang+(R()-.5)*spread)*Math.PI/180,l=s.len*(.6+R()*.8);
+      const dx=Math.cos(a)*l,dy=Math.sin(a)*l,b=(R()-.5)*l*.5;
+      d+=`M${f1(x)} ${f1(y)}q${f1(dx*.5+b)} ${f1(dy*.5)} ${f1(dx)} ${f1(dy)}`;
+    }
+    return `<path d="${d}" fill="none" stroke="${s.c}" stroke-width="${s.w}" stroke-opacity="${s.o}" stroke-linecap="round"/>`;
+  }).join('');
+}
+const fineHair=(R,base)=>hairs(R,[{c:shade(base,.35),n:1500,len:12,w:1.3,o:.3},{c:shade(base,-.35),n:1500,len:12,w:1.3,o:.3}]);
+
+/* ---------- узоры шерсти (мир 800×800) ---------- */
+function rosettes(R,o){
+  let s=`<rect width="800" height="800" fill="${o.base}"/>`;
+  const sp=o.sp;
+  for(let gy=-1;gy<800/sp*1.1;gy++)for(let gx=-1;gx<800/sp*1.1;gx++){
+    const cx=gx*sp+(gy%2)*sp/2+(R()-.5)*sp*.4,cy=gy*sp*.9+(R()-.5)*sp*.3,r=o.r*(.85+R()*.3);
+    s+=`<circle cx="${f1(cx)}" cy="${f1(cy)}" r="${f1(r*.9)}" fill="${o.inner}"/>`;
+    const k=7;
+    for(let i=0;i<k;i++){
+      const a=i/k*2*Math.PI+R()*.4;
+      s+=`<ellipse cx="${f1(cx+Math.cos(a)*r)}" cy="${f1(cy+Math.sin(a)*r)}" rx="${f1(o.r*.38+R()*o.r*.15)}" ry="${f1(o.r*.26+R()*o.r*.12)}" transform="rotate(${f1(a*57.3+90)} ${f1(cx+Math.cos(a)*r)} ${f1(cy+Math.sin(a)*r)})" fill="${o.ring}"/>`;
+    }
+  }
+  return s+fineHair(R,o.base);
+}
+function dots(R,o){
+  let s=`<rect width="800" height="800" fill="${o.base}"/>`;
+  for(let gy=-1;gy<800/o.sp+1;gy++)for(let gx=-1;gx<800/o.sp+1;gx++){
+    const cx=gx*o.sp+(gy%2)*o.sp/2+(R()-.5)*o.j,cy=gy*o.sp+(R()-.5)*o.j,r=o.r0+R()*(o.r1-o.r0);
+    s+=`<ellipse cx="${f1(cx)}" cy="${f1(cy)}" rx="${f1(r)}" ry="${f1(r*(.8+R()*.3))}" fill="${o.dot}"/>`;
+  }
+  return s+fineHair(R,o.base);
+}
+const PATTERNS={
+  leopard:R=>rosettes(R,{base:'#dba84c',inner:'#c48a33',ring:'#35200f',sp:74,r:19}),
+  snow:R=>rosettes(R,{base:'#cfcfca',inner:'#bdbdb8',ring:'#45484f',sp:92,r:25}),
+  cheetah:R=>dots(R,{base:'#e2b457',dot:'#2a1c10',sp:42,j:14,r0:4,r1:7}),
+  dalmatian:R=>dots(R,{base:'#f4f1e9',dot:'#1b1b1b',sp:66,j:26,r0:8,r1:17}),
+  giraffe:R=>{
+    let s=`<rect width="800" height="800" fill="#efd9a3"/>`;const cols=['#9b5a24','#8a4c1e','#a8652b','#7f4519'];
+    for(let gy=-1;gy<9;gy++)for(let gx=-1;gx<9;gx++){
+      const cx=gx*96+(gy%2)*48+(R()-.5)*14,cy=gy*86+(R()-.5)*12,c=cols[(R()*4)|0];
+      s+=`<path d="${poly(cx,cy,38+R()*8,.22,R,7)}" fill="${c}" stroke="${c}" stroke-width="6" stroke-linejoin="round"/>`;
+    }
+    return s+fineHair(R,'#a8652b');
+  },
+  cow:R=>{
+    let s=`<rect width="800" height="800" fill="#f7f4ee"/>`;
+    for(let i=0;i<9;i++)s+=`<path d="${blob(R()*800,R()*800,80+R()*70,.4,R,11)}" fill="#231f1d"/>`;
+    for(let i=0;i<7;i++)s+=`<path d="${blob(R()*800,R()*800,16+R()*18,.35,R,8)}" fill="#231f1d"/>`;
+    return s+fineHair(R,'#f7f4ee')+fineHair(R,'#231f1d').replace(/stroke-opacity="[^"]+"/g,'stroke-opacity=".12"');
+  },
+  tiger:R=>{
+    let s=`<rect width="800" height="800" fill="#de7a22"/>`;
+    for(let i=0;i<14;i++)s+=`<ellipse cx="${R()*800}" cy="${R()*800}" rx="${50+R()*60}" ry="${40+R()*50}" fill="#f4ab5c" opacity=".4"/>`;
+    for(let x=-10;x<830;x+=36){let y=-80+R()*100;while(y<860){const len=150+R()*240;s+=`<path d="${stripe(x+(R()-.5)*14,y,len,16+R()*14,14+R()*14,R,.12)}" fill="#1e140d" stroke="#1e140d" stroke-width="2" stroke-linejoin="round"/>`;y+=len+20+R()*70}}
+    return s+fineHair(R,'#de7a22');
+  },
+  zebra:R=>{
+    let s=`<rect width="800" height="800" fill="#f6f6f2"/>`;
+    for(let x=-20;x<840;x+=60){let y=-100+R()*80;while(y<880){const len=240+R()*260;s+=`<path d="${stripe(x+(R()-.5)*10,y,len,10+R()*10,30+R()*8,R,.18)}" fill="#141414" stroke="#141414" stroke-width="2" stroke-linejoin="round"/>`;y+=len+R()*30}}
+    return s+fineHair(R,'#f6f6f2');
+  },
+  fox:R=>`<rect width="800" height="800" fill="#cf5d17"/>`+hairs(R,[
+    {c:'#8a3a0c',n:1500,len:30,w:2.6,o:.4},{c:'#f08a2e',n:2200,len:30,w:2.6,o:.55},{c:'#ffc888',n:700,len:26,w:2,o:.5},{c:'#b34a10',n:1000,len:28,w:2.4,o:.4}]),
+  bear:R=>`<rect width="800" height="800" fill="#5a3921"/>`+hairs(R,[
+    {c:'#3a2312',n:2000,len:32,w:3,o:.5},{c:'#7e5333',n:2200,len:32,w:3,o:.5},{c:'#946543',n:800,len:28,w:2.4,o:.4}]),
+  polar:R=>`<rect width="800" height="800" fill="#f1ead6"/>`+hairs(R,[
+    {c:'#ded4b8',n:2200,len:34,w:3.2,o:.55},{c:'#fffdf4',n:2400,len:34,w:3.2,o:.7},{c:'#e8d9a8',n:500,len:30,w:2.4,o:.35}]),
+  wolf:R=>`<rect width="800" height="800" fill="#8a8c8d"/>`+hairs(R,[
+    {c:'#4f5155',n:1800,len:32,w:2.6,o:.5},{c:'#b9b8b3',n:2200,len:32,w:2.6,o:.55},{c:'#dcd6c9',n:700,len:28,w:2,o:.45},{c:'#2f3033',n:500,len:30,w:2.4,o:.45}])
+};
+
+/* ---------- животные ---------- */
+const ANIMALS=[
+ {id:'leopard',name:'Леопард',emoji:'🐆',family:'spots',img:'leo'+IMG_EXT,
+  fact:'Розетки ломают контур тела в пятнах света и тени листвы — так легче подкрадываться.'},
+ {id:'snow',name:'Снежный барс',emoji:'🐆',family:'spots',img:'irbis'+IMG_EXT,
+  fact:'Серая шубка с тёмными кольцами сливается со скалами и снегом высоко в горах.'},
+ {id:'cheetah',name:'Гепард',emoji:'🐆',family:'spots',img:'cheetos'+IMG_EXT,
+  fact:'У гепарда не кольца, а сплошные чёрные точки. А тёмные «слёзные дорожки» от глаз, как считается, защищают от слепящего солнца.'},
+ {id:'dalmatian',name:'Далматин',emoji:'🐕',family:'spots',img:'dalmatin'+IMG_EXT,
+  fact:'Щенки далматинов рождаются белыми — пятна появляются у них позже.'},
+ {id:'giraffe',name:'Жираф',emoji:'🦒',family:'spots',img:'girafa'+IMG_EXT,
+  fact:'Узор пятен у каждого жирафа свой, как отпечаток пальца. Под крупными пятнами много сосудов — возможно, они помогают отдавать лишнее тепло.'},
+ {id:'cow',name:'Корова',emoji:'🐄',family:'spots',img:'cow'+IMG_EXT,
+  fact:'У каждой чёрно-белой коровы рисунок пятен неповторимый.'},
+ {id:'tiger',name:'Тигр',emoji:'🐅',family:'stripes',img:'tiger'+IMG_EXT,
+  fact:'Полоски есть и на коже под шерстью. Для оленей оранжевый цвет сливается с зеленью, а вот полоски разбивают силуэт тигра.'},
+ {id:'zebra',name:'Зебра',emoji:'🦓',family:'stripes',img:'zibra'+IMG_EXT,
+  fact:'Рисунок у каждой зебры свой. Одна из гипотез: полосы сбивают с толку кровососущих мух.'},
+ {id:'fox',name:'Лиса',emoji:'🦊',family:'plain',img:'fox'+IMG_EXT,
+  fact:'Рыжая шубка сливается с сухой травой и осенним лесом, а белый кончик хвоста помогает лисам видеть друг друга.'},
+ {id:'bear',name:'Бурый медведь',emoji:'🐻',family:'plain',img:'bear'+IMG_EXT,
+  fact:'Цвет шерсти зависит от места жизни: бывает от светло-рыжего почти до чёрного.'},
+ {id:'polar',name:'Белый медведь',emoji:'🐻‍❄️',family:'plain',img:'arcticbear'+IMG_EXT,
+  fact:'Шерсть белого медведя прозрачная и полая внутри, а белой кажется из-за рассеянного света. Кожа под ней чёрная.'},
+ {id:'wolf',name:'Волк',emoji:'🐺',family:'plain',img:'wolf'+IMG_EXT,
+  fact:'Серая шубка с тёмными кончиками волос сливается со скалами и стволами. Бывают волки от белых до чёрных.'}
+];
+const byId=Object.fromEntries(ANIMALS.map(a=>[a.id,a]));
+
+/* ---------- картинки (файл рядом или загруженные) ---------- */
+let custom={};
+try{custom=JSON.parse(localStorage.getItem('fur_imgs')||'{}')}catch(e){}
+function picNode(a){
+  const box=document.createElement('div');box.style.cssText='width:100%;height:100%';
+  const ph=()=>{box.innerHTML=`<div class="ph"><b>${a.emoji}</b>вставь картинку</div>`};
+  const src=custom[a.id]||a.img;
+  if(!src){ph();return box}
+  const im=new Image();im.alt=a.name;im.onerror=ph;im.src=src;box.appendChild(im);return box;
+}
+
+/* ---------- шерсть в лупе ---------- */
+const NS='http://www.w3.org/2000/svg';
+function makeFur(a,seed){
+  const svg=document.createElementNS(NS,'svg');
+  svg.setAttribute('viewBox','0 0 800 800');svg.setAttribute('preserveAspectRatio','xMidYMid slice');
+  svg.innerHTML=PATTERNS[a.id](rng(seed));
+  return svg;
+}
+
+/* ---------- состояние игры ---------- */
+const $=id=>document.getElementById(id);
+let queue=[],ri=0,score=0,level=0,locked=false,results=[],cur=null,cx=400,cy=400,vb=ZOOM_WINDOWS[0],anim=0,svgEl=null;
+
+function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('on',s.id===id))}
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;[a[i],a[j]]=[a[j],a[i]]}return a}
+
+function setView(w){vb=w;if(svgEl)svgEl.setAttribute('viewBox',`${f1(cx-w/2)} ${f1(cy-w/2)} ${f1(w)} ${f1(w)}`)}
+function zoomTo(w){
+  cancelAnimationFrame(anim);const from=vb,t0=performance.now(),D=650;
+  const step=t=>{const k=Math.min(1,(t-t0)/D),e=1-Math.pow(1-k,3);setView(from+(w-from)*e);if(k<1)anim=requestAnimationFrame(step)};
+  anim=requestAnimationFrame(step);
+}
+function renderStars(){
+  $('stars').innerHTML=POINTS.map((_,i)=>`<span class="${i<POINTS[level]?'':'off'}">★</span>`).join('');
+  $('zoomBtn').disabled=locked||level>=ZOOM_WINDOWS.length-1;
+}
+
+function startGame(){
+  queue=shuffle(ANIMALS).slice(0,Math.min(ROUNDS,ANIMALS.length));ri=0;score=0;results=[];
+  show('sGame');$('roundPill').style.display=$('scorePill').style.display='';nextRound();
+}
+function nextRound(){
+  if(ri>=queue.length)return endGame();
+  cur=queue[ri];level=0;locked=false;
+  $('result').className='result';
+  $('roundPill').textContent=`Раунд ${ri+1}/${queue.length}`;$('scorePill').textContent=`★ ${score}`;
+  // шерсть
+  const glass=$('glass');glass.innerHTML='';svgEl=makeFur(cur,(Math.random()*1e9)|0);glass.appendChild(svgEl);
+  cx=330+Math.random()*140;cy=330+Math.random()*140;setView(ZOOM_WINDOWS[0]);
+  // варианты: 2 из той же семьи + остальные случайные
+  const same=shuffle(ANIMALS.filter(a=>a!==cur&&a.family===cur.family)).slice(0,2);
+  const rest=shuffle(ANIMALS.filter(a=>a!==cur&&!same.includes(a))).slice(0,3-same.length);
+  const opts=shuffle([cur,...same,...rest]);
+  const box=$('opts');box.innerHTML='';
+  opts.forEach(a=>{
+    const b=document.createElement('button');b.className='opt';b.dataset.id=a.id;
+    const pic=document.createElement('div');pic.className='pic';pic.appendChild(picNode(a));
+    const nm=document.createElement('div');nm.className='nm';nm.textContent=a.name;
+    b.append(pic,nm);b.onclick=()=>guess(a,b);box.appendChild(b);
+  });
+  renderStars();
+}
+function guess(a,btn){
+  if(locked)return;
+  if(a===cur){
+    const pts=POINTS[level];score+=pts;results.push({a:cur,pts});
+    btn.classList.add('right');finish(true,pts);
+  } else {
+    btn.classList.add('wrong');btn.disabled=true;
+    if(level<ZOOM_WINDOWS.length-1){
+      level++;zoomTo(ZOOM_WINDOWS[level]);renderStars();
+      $('q').textContent='Не то! Смотрим шире…';
+    } else {
+      results.push({a:cur,pts:0});
+      document.querySelector(`.opt[data-id="${cur.id}"]`).classList.add('right');finish(false,0);
+    }
+  }
+}
+function finish(ok,pts){
+  locked=true;zoomTo(ZOOM_WINDOWS[ZOOM_WINDOWS.length-1]);
+  document.querySelectorAll('.opt').forEach(b=>{b.disabled=true});
+  document.querySelector(`.opt[data-id="${cur.id}"]`).classList.add('right');
+  const r=$('result');r.className='result on '+(ok?'good':'bad');
+  $('rHead').textContent=ok?`Верно! Это ${cur.name.toLowerCase()}  +${pts}★`:`Это был(а) ${cur.name.toLowerCase()}`;
+  $('rText').textContent=cur.fact;
+  $('goBtn').textContent=ri+1>=queue.length?'Результаты':'Дальше';
+  $('scorePill').textContent=`★ ${score}`;$('zoomBtn').disabled=true;
+  $('q').textContent='Чья это шубка?';
+}
+function endGame(){
+  show('sEnd');$('roundPill').style.display=$('scorePill').style.display='none';
+  const max=queue.length*POINTS[0];
+  $('endScore').textContent=`${score} / ${max}`;
+  const p=score/max;
+  $('endTitle').textContent=p>.8?'Ты настоящий зоолог!':p>.55?'Отличный глаз!':p>.3?'Неплохо, тренируйся!':'Шубки — штука хитрая';
+  $('endText').textContent='Вот как прошли раунды:';
+  $('recap').innerHTML=results.map(r=>`<span class="${r.pts?'':'z'}">${r.a.emoji} ${r.a.name} · ${r.pts}★</span>`).join('');
+}
+
+$('startBtn').onclick=startGame;$('againBtn').onclick=startGame;
+$('goBtn').onclick=()=>{ri++;nextRound()};
+$('zoomBtn').onclick=()=>{if(locked||level>=ZOOM_WINDOWS.length-1)return;level++;zoomTo(ZOOM_WINDOWS[level]);renderStars()};
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&$('result').classList.contains('on'))$('goBtn').click()});
+
+/* ---------- окно «Картинки» ---------- */
+function resizeImg(file,cb){
+  const fr=new FileReader();
+  fr.onload=()=>{const im=new Image();im.onload=()=>{
+    const k=Math.min(1,360/Math.max(im.width,im.height)),c=document.createElement('canvas');
+    c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);
+    let u=c.toDataURL('image/webp',.88);if(!u.startsWith('data:image/webp'))u=c.toDataURL('image/png');cb(u)};im.src=fr.result};
+  fr.readAsDataURL(file);
+}
+function buildImgList(){
+  const box=$('imgList');box.innerHTML='';
+  ANIMALS.forEach(a=>{
+    const row=document.createElement('div');row.className='row';
+    const th=document.createElement('div');th.className='th';th.appendChild(picNode(a));
+    const nm=document.createElement('div');nm.className='rn';nm.innerHTML=`${a.name}<br><small style="color:#8a7660;font-weight:600">${a.img}</small>`;
+    const inp=document.createElement('input');inp.type='file';inp.accept='image/*';
+    inp.onchange=()=>{if(!inp.files[0])return;resizeImg(inp.files[0],u=>{custom[a.id]=u;try{localStorage.setItem('fur_imgs',JSON.stringify(custom))}catch(e){}buildImgList()})};
+    row.append(th,nm,inp);box.appendChild(row);
+  });
+}
+$('imgBtn').onclick=()=>{buildImgList();$('dlg').showModal()};
+$('dlgClose').onclick=()=>{$('dlg').close();if($('sGame').classList.contains('on')&&cur&&!locked)return;};
+
+/* демо-лупа на старте */
+(()=>{const s=makeFur(byId.leopard,5);s.setAttribute('viewBox','250 250 220 220');$('demo').appendChild(s)})();
+</script>
+</body>
+</html>
